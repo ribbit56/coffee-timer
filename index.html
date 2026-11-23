@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coffee Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1d1511; --bg2:#3a281e; --cream:#f3e6cf; --cream-dim:#c9b79b;
+    --coffee:#b07a4a; --foam:#ecd2a8; --saucer:#c4936a; --accent:#e0a66b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  html{scroll-behavior:smooth}
+  body{
+    background:radial-gradient(ellipse at 50% 38%, var(--bg2) 0%, var(--bg) 62%);
+    color:var(--cream);
+    font-family:"Fraunces",Georgia,serif;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100dvh;overflow-x:hidden;
+    padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 18px);
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;-webkit-user-select:none;
+  }
+  .brand{font-size:13px;letter-spacing:.32em;text-transform:lowercase;color:var(--cream-dim);opacity:.8;font-weight:300}
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;position:relative}
+  .stage::before{ /* warm lamp glow */
+    content:"";position:absolute;width:70%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle, rgba(224,166,107,.16), transparent 65%);
+    pointer-events:none;
+  }
+  pre#art{
+    font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    line-height:1.08;font-size:10px;white-space:pre;cursor:grab;touch-action:pan-y;
+    position:relative;
+  }
+  pre#art:active{cursor:grabbing}
+  .m{color:var(--cream)} .md{color:var(--cream-dim)} .c{color:var(--coffee)} .f{color:var(--foam)}
+  .s{color:var(--saucer)} .t1{color:rgba(243,230,207,.62)} .t2{color:rgba(243,230,207,.38)} .t3{color:rgba(243,230,207,.18)}
+  .panel{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:420px}
+  .time{font-size:clamp(56px,17vw,88px);font-weight:300;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums;font-optical-sizing:auto}
+  .status{font-style:italic;font-weight:300;color:var(--cream-dim);font-size:15px;min-height:1.3em;text-align:center}
+  .row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+  button{
+    font:inherit;color:var(--cream);background:rgba(243,230,207,.06);
+    border:1px solid rgba(243,230,207,.16);border-radius:999px;
+    padding:8px 14px;font-size:15px;cursor:pointer;transition:background .2s,border-color .2s,transform .1s;
+  }
+  button:active{transform:scale(.96)}
+  button.on{background:rgba(224,166,107,.22);border-color:rgba(224,166,107,.6)}
+  button.icon{width:38px;height:38px;padding:0;font-size:18px;line-height:1}
+  .primary{
+    background:var(--accent);color:#2a1a10;border-color:var(--accent);
+    padding:12px 34px;font-size:18px;font-weight:500;min-width:140px;
+    box-shadow:0 6px 24px rgba(224,166,107,.25);
+  }
+  .ghost{background:transparent}
+  .tiny{font-size:12px;color:var(--cream-dim);opacity:.7;letter-spacing:.04em}
+  .tiny button{font-size:12px;padding:5px 11px;color:var(--cream-dim)}
+  .tiny a{color:inherit}
+
+  /* layout */
+  .layout{width:100%;max-width:1180px;display:flex;flex-direction:column;align-items:center;gap:28px}
+  .timer-col{width:100%;min-height:calc(100dvh - 32px);display:flex;flex-direction:column;align-items:center}
+  .todo-col{width:100%;max-width:460px;padding-bottom:12px}
+  @media (min-width:940px){
+    .layout{flex-direction:row;align-items:center;justify-content:center;min-height:calc(100dvh - 32px)}
+    .timer-col{flex:1.35;min-height:0;height:calc(100dvh - 40px)}
+    .todo-col{flex:1;max-width:420px}
+  }
+  .focusline{font-size:14px;color:var(--cream-dim);min-height:1.2em;text-align:center;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:-6px}
+  .focusline b{font-weight:500;color:var(--accent)}
+
+  /* to-do card */
+  .card{background:rgba(243,230,207,.035);border:1px solid rgba(243,230,207,.11);border-radius:20px;padding:18px 16px 14px;
+    box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 4px 12px}
+  .card-head h2{font-weight:300;font-size:22px;letter-spacing:.01em}
+  .card-head .count{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:var(--cream-dim);opacity:.75}
+  form.add{display:flex;gap:8px;margin-bottom:8px}
+  form.add input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--cream);background:rgba(0,0,0,.18);
+    border:1px solid rgba(243,230,207,.14);border-radius:12px;padding:10px 12px;outline:none;user-select:text;-webkit-user-select:text}
+  form.add input::placeholder{color:var(--cream-dim);opacity:.55;font-style:italic}
+  form.add input:focus{border-color:rgba(224,166,107,.55)}
+  form.add button{border-radius:12px;padding:0 14px;font-size:20px}
+  ul.todos{list-style:none;display:flex;flex-direction:column}
+  ul.todos li{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px dashed rgba(243,230,207,.09);
+    border-radius:10px;transition:background .2s}
+  ul.todos li:last-child{border-bottom:none}
+  ul.todos li.focus{background:rgba(224,166,107,.12)}
+  .chk{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:15px;background:none;border:none;padding:4px 2px;color:var(--cream-dim);border-radius:6px}
+  li.done .chk{color:var(--accent)}
+  .txt{flex:1;min-width:0;font-size:16px;line-height:1.3;cursor:pointer;word-break:break-word}
+  li.done .txt{text-decoration:line-through;text-decoration-color:rgba(243,230,207,.35);color:var(--cream-dim);opacity:.6}
+  .tag{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--accent);white-space:nowrap}
+  .cups{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--cream-dim);opacity:.8;white-space:nowrap}
+  .del{background:none;border:none;color:var(--cream-dim);opacity:.4;font-size:18px;padding:2px 6px;line-height:1}
+  .del:hover{opacity:.9}
+  .empty{font-style:italic;font-weight:300;color:var(--cream-dim);opacity:.7;text-align:center;padding:18px 8px 10px;font-size:15px}
+  .empty pre{font-family:"JetBrains Mono",ui-monospace,monospace;font-style:normal;font-size:12px;line-height:1.1;margin-bottom:8px;opacity:.8}
+  .card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 4px 0;font-size:12px;color:var(--cream-dim)}
+  .card-foot .hint{opacity:.6;font-style:italic}
+  .card-foot button{font-size:12px;padding:5px 11px;color:var(--cream-dim)}
+  .syncnote{font-size:11px;color:var(--cream-dim);opacity:.6;text-align:center;padding-top:8px;min-height:1em}
+</style>
+</head>
+<body>
+<main class="layout">
+ <section class="timer-col">
+  <div class="brand">a little coffee timer</div>
+  <div class="stage" id="stage"><pre id="art" aria-label="A spinning ASCII coffee mug that empties as the timer runs"></pre></div>
+  <div class="panel">
+    <div class="time" id="time">25:00</div>
+    <div class="status" id="status">fresh pot, ready when you are</div>
+    <div class="focusline" id="focusline"></div>
+    <div class="row" id="presets">
+      <button class="icon" id="minus" aria-label="One minute less">−</button>
+      <button data-m="5">5</button>
+      <button data-m="15">15</button>
+      <button data-m="25">25</button>
+      <button data-m="50">50</button>
+      <button class="icon" id="plus" aria-label="One minute more">+</button>
+    </div>
+    <div class="row">
+      <button class="primary" id="go">Start</button>
+      <button class="ghost" id="reset">Refill</button>
+    </div>
+    <div class="row tiny">
+      <button id="chime">chime: on</button>
+      <span>drag the mug to spin it</span>
+      <a href="#list" id="jump">today's list ↓</a>
+    </div>
+  </div>
+ </section>
+
+ <section class="todo-col" id="list">
+  <div class="card">
+    <div class="card-head"><h2>today's list</h2><span class="count" id="count"></span></div>
+    <form class="add" id="addForm" autocomplete="off">
+      <input id="newTask" maxlength="200" placeholder="add a little task…" aria-label="New task">
+      <button type="submit" aria-label="Add task">+</button>
+    </form>
+    <ul class="todos" id="todos"></ul>
+    <div class="empty" id="empty" hidden><pre>  ( (
+   ) )
+ ........
+ |      |]
+ \      /
+  `----'</pre>nothing on the list yet. pour a cup and add one.</div>
+    <div class="card-foot" id="foot">
+      <span class="hint">tap a task to brew it with the timer</span>
+      <button id="clearDone" hidden>clear done</button>
+    </div>
+  </div>
+  <div class="syncnote" id="syncnote"></div>
+ </section>
+</main>
+
+<script id="engine">
+// ---------- 3D ASCII mug engine ----------
+const W = 66, H = 44;
+const RAMP = ".,-~:;=!*#$@";
+const KIND = { MUG:1, IN:2, RIM:3, COF:4, SAU:5, HAN:6 };
+const CLS = ["", "m", "md", "c", "f", "s", "t1", "t2", "t3"]; // 0 = empty
+const TILT = 0.8, DIST = 6, KX = 92, KY = 50;
+const COLC = W / 2, ROWC = 27;
+const FULL = 0.72, EMPTY = -0.9;
+const LV = (() => { const l = [-0.62, 0.5, -0.6], n = Math.hypot(...l); return l.map(v => v / n); })();
+
+function buildGeo() {
+  const P = [];
+  const add = (x, y, z, nx, ny, nz, k, e = 0) => P.push(x, y, z, nx, ny, nz, k, e);
+  const R = 1, r = 0.86, TAU = Math.PI * 2;
+  for (let t = 0; t < TAU; t += 0.022) {
+    const c = Math.cos(t), s = Math.sin(t);
+    for (let y = -1; y <= 1.0001; y += 0.028) add(R * c, y, R * s, c, 0, s, KIND.MUG);          // outer wall
+    for (let u = 0; u <= 1.0001; u += 0.02) add(r * c, 0, r * s, -c, 0, -s, KIND.IN, u);      // inner wall (y set per frame)
+    for (let q = r; q <= R + 0.001; q += 0.025) add(q * c, 1, q * s, 0, 1, 0, KIND.RIM);       // rim
+    for (let q = 0; q < r; q += 0.026) {                                                         // coffee surface
+      const foam = (q < 0.74 && Math.sin(3 * t + 9.5 * q) > 0.45) || q < 0.1 ? 1 : 0;
+      add(q * c, 0, q * s, 0, 1, 0, KIND.COF, q + foam * 10);
+    }
+    for (let q = 0.92; q <= 1.52; q += 0.026) {                                                  // saucer dish
+      const a = Math.max(0, (q - 1.1) / 0.42), y = -1.02 + 0.13 * a * a;
+      const slope = q > 1.1 ? 0.62 * a : 0, n = Math.hypot(slope, 1);
+      add(q * c, y, q * s, -slope * c / n, 1 / n, -slope * s / n, KIND.SAU);
+    }
+    for (let y = -1.12; y <= -0.89; y += 0.03) add(1.52 * c, y, 1.52 * s, c, 0, s, KIND.SAU);   // saucer edge
+  }
+  // handle: partial torus in the XY plane, hugging the wall
+  const cx = 0.98, a = 0.46, b = 0.125;
+  for (let u = -1.8; u <= 1.8; u += 0.03) {
+    for (let p = 0; p < TAU; p += 0.11) {
+      const cu = Math.cos(u), su = Math.sin(u), cp = Math.cos(p), sp = Math.sin(p);
+      add(cx + (a + b * cp) * cu, (a + b * cp) * su * 1.05, b * sp, cp * cu, cp * su, sp, KIND.HAN);
+    }
+  }
+  return new Float32Array(P);
+}
+
+function makeFrame() {
+  return { ch: new Uint8Array(W * H), cl: new Uint8Array(W * H), z: new Float32Array(W * H) };
+}
+
+function renderMug(geo, fr, A, lvl, time) {
+  const { ch, cl, z } = fr;
+  ch.fill(32); cl.fill(0); z.fill(0);
+  const ca = Math.cos(A), sa = Math.sin(A), cb = Math.cos(TILT), sb = Math.sin(TILT);
+  const [Lx, Ly, Lz] = LV, empty = lvl <= EMPTY + 0.02;
+  for (let i = 0; i < geo.length; i += 8) {
+    const k = geo[i + 6], e = geo[i + 7];
+    let x = geo[i], y = geo[i + 1], zz = geo[i + 2];
+    if (k === KIND.IN) { if (lvl > 0.985) continue; y = lvl + e * (1 - lvl); }
+    else if (k === KIND.COF) y = lvl;
+    const nx = geo[i + 3], ny = geo[i + 4], nz = geo[i + 5];
+    const x1 = x * ca + zz * sa, z1 = -x * sa + zz * ca;
+    const y2 = y * cb + z1 * sb, z2 = -y * sb + z1 * cb;
+    const nx1 = nx * ca + nz * sa, nz1 = -nx * sa + nz * ca;
+    const ny2 = ny * cb + nz1 * sb, nz2 = -ny * sb + nz1 * cb;
+    if (nz2 > 0.04) continue;                       // facing away
+    const ooz = 1 / (z2 + DIST);
+    const col = (COLC + KX * x1 * ooz) | 0, row = (ROWC - KY * y2 * ooz) | 0;
+    if (col < 0 || col >= W || row < 0 || row >= H) continue;
+    const idx = row * W + col;
+    if (ooz <= z[idx]) continue;
+    z[idx] = ooz;
+    const L = Math.max(0, nx1 * Lx + ny2 * Ly + nz2 * Lz);
+    let lum, c;
+    switch (k) {
+      case KIND.IN:  lum = 0.06 + L * 0.55; c = 2; break;
+      case KIND.COF: {
+        if (empty) { lum = 0.15; c = 2; break; }
+        const foam = e >= 10, q = foam ? e - 10 : e;
+        const ripple = 0.07 * Math.sin(q * 16 - time * 1.6);
+        lum = foam ? 0.6 + 0.25 * L + ripple : 0.2 + 0.2 * L + ripple;
+        c = foam ? 4 : 3; break;
+      }
+      case KIND.SAU: lum = 0.1 + L * 0.85; c = 5; break;
+      default:       lum = 0.2 + L * 0.8; c = 1;
+    }
+    ch[idx] = RAMP.charCodeAt(Math.max(0, Math.min(11, (lum * 12) | 0)));
+    cl[idx] = c;
+  }
+}
+
+// steam: simple drifting wisps in grid space
+const STEAM_CH = ["(", ")", "~", "'", "`", ".", ","];
+function stepSteam(parts, dt, heat, time) {
+  const top = ROWC - 12; // just above the rim
+  if (heat > 0 && Math.random() < heat * dt * 22) {
+    parts.push({ x: COLC + (Math.random() - 0.5) * 16, y: top, vy: 3 + Math.random() * 3, ph: Math.random() * 6.28, age: 0, life: 2.2 + Math.random() * 2 });
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.age += dt; p.y -= p.vy * dt;
+    if (p.age > p.life || p.y < 0) parts.splice(i, 1);
+  }
+}
+function drawSteam(parts, fr, time) {
+  for (const p of parts) {
+    const sway = Math.sin(p.age * 2.2 + p.ph) * (1 + p.age * 1.4);
+    const col = Math.round(p.x + sway), row = Math.round(p.y);
+    if (col < 0 || col >= W || row < 0 || row >= H) continue;
+    const idx = row * W + col;
+    if (fr.cl[idx] !== 0) continue;
+    const dsway = Math.cos(p.age * 2.2 + p.ph);
+    const f = p.age / p.life;
+    const ch = f > 0.75 ? (dsway > 0 ? "'" : "`") : (dsway > 0.45 ? ")" : dsway < -0.45 ? "(" : "~");
+    fr.ch[idx] = ch.charCodeAt(0);
+    fr.cl[idx] = f < 0.35 ? 6 : f < 0.7 ? 7 : 8;
+  }
+}
+
+function frameToHTML(fr) {
+  let out = "";
+  for (let r = 0; r < H; r++) {
+    let run = "", rc = -1;
+    for (let c = 0; c < W; c++) {
+      const i = r * W + c, k = fr.cl[i];
+      if (k !== rc) { if (run) out += rc ? `<span class="${CLS[rc]}">${run}</span>` : run; run = ""; rc = k; }
+      run += String.fromCharCode(fr.ch[i]);
+    }
+    if (run) out += rc ? `<span class="${CLS[rc]}">${run}</span>` : run;
+    out += "\n";
+  }
+  return out;
+}
+function frameToText(fr) {
+  let out = "";
+  for (let r = 0; r < H; r++) { for (let c = 0; c < W; c++) out += String.fromCharCode(fr.ch[r * W + c]); out += "\n"; }
+  return out;
+}
+if (typeof module !== "undefined") module.exports = { buildGeo, makeFrame, renderMug, stepSteam, drawSteam, frameToText, FULL, EMPTY };
+</script>
+
+<script>
+// ---------- to-do list (saved privately per person; falls back to this browser) ----------
+const Todos = (() => {
+  const $ = id => document.getElementById(id);
+  const LS = "ct-todos-v1";
+  let items = [], focusId = null;
+  let ref = null, writing = false, dirty = false, saveTimer = 0;
+
+  const clean = d => {
+    const arr = Array.isArray(d && d.items) ? d.items : [];
+    const out = arr.filter(x => x && typeof x.id === "string" && typeof x.text === "string").slice(0, 300).map(x => ({
+      id: x.id.slice(0, 40), text: x.text.slice(0, 200), done: !!x.done, cups: Math.max(0, Math.min(999, +x.cups || 0)), at: +x.at || 0
+    }));
+    const f = d && typeof d.focusId === "string" && out.some(x => x.id === d.focusId && !x.done) ? d.focusId : null;
+    return { items: out, focusId: f };
+  };
+  const snapshot = () => ({ items: items.map(x => ({ ...x })), focusId, updated: Date.now() });
+  const cacheLocal = () => { try { localStorage.setItem(LS, JSON.stringify(snapshot())); } catch {} };
+  const note = t => { $("syncnote").textContent = t || ""; };
+
+  try { const c = clean(JSON.parse(localStorage.getItem(LS) || "null")); items = c.items; focusId = c.focusId; } catch {}
+
+  function save() {
+    cacheLocal(); render();
+    if (!ref) return;
+    dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 450);
+  }
+  async function flush() {
+    if (!ref || writing || !dirty) return;
+    writing = true; dirty = false;
+    try { await ref.set(snapshot()); }
+    catch (e) {
+      const code = e && e.code;
+      if (code === "unavailable" || code === "resource_exhausted") { dirty = true; setTimeout(flush, 900 + Math.random() * 900); }
+      else { ref = null; note("saving on this device only"); }
+    } finally {
+      writing = false;
+      if (dirty && ref) setTimeout(flush, 60);
+    }
+  }
+
+  async function connect() {
+    const c = window.claude;
+    if (!c || typeof c.use !== "function") { note("saving on this device only"); return; }
+    let db = null, user = null, uid = null;
+    try { [db, user] = await Promise.all([c.use("db"), c.use("user")]); uid = user ? await user.id() : null; } catch {}
+    if (!db || !uid) { note("saving on this device only"); return; }
+    try { ref = db.doc("data/users/" + uid + "/todos"); } catch { ref = null; note("saving on this device only"); return; }
+    const slow = setTimeout(() => note("can't reach your saved list yet — changes are kept here meanwhile"), 10000);
+    let migrated = false;
+    ref.onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { clearTimeout(slow); note(""); }
+      if (snap.metadata.hasPendingWrites || dirty || writing) return;
+      if (snap.exists) {
+        const d = clean(snap.data());
+        items = d.items; focusId = d.focusId; cacheLocal(); render();
+      } else if (!snap.metadata.fromCache && !migrated && items.length) {
+        migrated = true; dirty = true; flush();   // first time: carry this browser's list over
+      }
+    }, () => { clearTimeout(slow); ref = null; note("saving on this device only"); });
+  }
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  function add(text) {
+    text = text.trim().slice(0, 200); if (!text) return;
+    items.push({ id: uid(), text, done: false, cups: 0, at: Date.now() }); save();
+  }
+  function toggle(id) {
+    const it = items.find(x => x.id === id); if (!it) return;
+    it.done = !it.done; if (it.done && focusId === id) focusId = null; save();
+  }
+  function remove(id) { items = items.filter(x => x.id !== id); if (focusId === id) focusId = null; save(); }
+  function setFocus(id) {
+    const it = items.find(x => x.id === id); if (!it || it.done) return;
+    focusId = focusId === id ? null : id; save();
+  }
+  function clearDone() { items = items.filter(x => !x.done); save(); }
+  function addCup() {
+    const it = items.find(x => x.id === focusId); if (!it) return;
+    it.cups += 1; save();
+  }
+
+  function render() {
+    const ul = $("todos"); ul.textContent = "";
+    const open = items.filter(x => !x.done), done = items.filter(x => x.done);
+    for (const it of [...open, ...done]) {
+      const li = document.createElement("li");
+      li.className = (it.done ? "done " : "") + (it.id === focusId ? "focus" : "");
+      const chk = document.createElement("button");
+      chk.className = "chk"; chk.textContent = it.done ? "[x]" : "[ ]";
+      chk.setAttribute("aria-label", it.done ? "Mark not done" : "Mark done");
+      chk.onclick = () => toggle(it.id);
+      const txt = document.createElement("span");
+      txt.className = "txt"; txt.textContent = it.text;
+      txt.title = it.done ? "" : (it.id === focusId ? "Tap to stop brewing this" : "Tap to brew this with the timer");
+      txt.onclick = () => setFocus(it.id);
+      li.append(chk, txt);
+      if (it.id === focusId) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "brewing"; li.append(t); }
+      if (it.cups) { const cp = document.createElement("span"); cp.className = "cups"; cp.textContent = "c[_]×" + it.cups; cp.title = it.cups + " timer" + (it.cups > 1 ? "s" : "") + " finished on this"; li.append(cp); }
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete task");
+      del.onclick = () => remove(it.id);
+      li.append(del);
+      ul.append(li);
+    }
+    $("empty").hidden = items.length > 0;
+    $("foot").hidden = items.length === 0;
+    $("clearDone").hidden = done.length === 0;
+    $("count").textContent = items.length ? `${done.length}/${items.length} done` : "";
+    const f = items.find(x => x.id === focusId);
+    const fl = $("focusline"); fl.textContent = "";
+    if (f) { fl.append("brewing: "); const b = document.createElement("b"); b.textContent = f.text; fl.append(b); }
+    $("jump").textContent = open.length ? `today's list (${open.length}) ↓` : "today's list ↓";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("addForm").addEventListener("submit", e => { e.preventDefault(); const inp = $("newTask"); add(inp.value); inp.value = ""; inp.focus(); });
+    $("clearDone").onclick = clearDone;
+    render();
+  });
+  window.addEventListener("load", connect);
+  return { addCup };
+})();
+</script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const art = $("art"), timeEl = $("time"), statusEl = $("status"), goBtn = $("go");
+  const geo = buildGeo(), fr = makeFrame(), steam = [];
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+                  set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+  // ---- timer state ----
+  let duration = Math.min(120, Math.max(1, +store.get("ct-min", 25) || 25)) * 60;
+  let remaining = duration, running = false, done = false, endAt = 0;
+  let chimeOn = store.get("ct-chime", "1") === "1";
+  let level = FULL, angle = 0.6, vel = 0.42, dragging = false, lastX = 0, lastT = 0;
+  let audio = null, wakeLock = null, idleMsgTimer = 0, msgIdx = 0;
+
+  const RUN_MSGS = ["sip slowly, stay cozy", "one thing at a time", "warm hands, quiet mind", "you're doing great", "steady as a slow pour"];
+
+  const fmt = s => { s = Math.ceil(s); const m = Math.floor(s / 60), r = s % 60; return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`; };
+  function setStatus(t) { statusEl.textContent = t; }
+  function syncPresets() {
+    document.querySelectorAll("#presets [data-m]").forEach(b => b.classList.toggle("on", +b.dataset.m * 60 === duration));
+  }
+  function updateUI() {
+    timeEl.textContent = fmt(remaining);
+    goBtn.textContent = running ? "Pause" : done ? "Again" : remaining < duration ? "Resume" : "Start";
+    document.title = running ? `${fmt(remaining)} · Coffee Timer` : done ? "Done · Coffee Timer" : "Coffee Timer";
+  }
+
+  function ensureAudio() {
+    try { if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === "suspended") audio.resume(); } catch {}
+  }
+  function chime() {
+    if (!chimeOn || !audio) return;
+    try {
+      const t0 = audio.currentTime;
+      [[659.25, 0], [783.99, 0.35], [1046.5, 0.7]].forEach(([f, d]) => {
+        [1, 2.01].forEach((mult, j) => {
+          const o = audio.createOscillator(), g = audio.createGain();
+          o.type = "sine"; o.frequency.value = f * mult;
+          const v = j ? 0.03 : 0.12;
+          g.gain.setValueAtTime(0, t0 + d); g.gain.linearRampToValueAtTime(v, t0 + d + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 2.4);
+          o.connect(g).connect(audio.destination); o.start(t0 + d); o.stop(t0 + d + 2.5);
+        });
+      });
+    } catch {}
+  }
+  async function lockScreen(on) {
+    try {
+      if (on && "wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+      else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+    } catch {}
+  }
+
+  function start() {
+    ensureAudio();
+    if (done) reset();
+    endAt = performance.now() + remaining * 1000; running = true;
+    setStatus(RUN_MSGS[msgIdx % RUN_MSGS.length]); idleMsgTimer = 0;
+    lockScreen(true); updateUI();
+  }
+  function pause() {
+    remaining = Math.max(0, (endAt - performance.now()) / 1000); running = false;
+    setStatus("paused — coffee's still warm"); lockScreen(false); updateUI();
+  }
+  function reset() {
+    running = false; done = false; remaining = duration;
+    setStatus("fresh pot, ready when you are"); lockScreen(false); updateUI();
+  }
+  function finish() {
+    running = false; done = true; remaining = 0;
+    setStatus("all done. stretch a little, then refill"); chime(); lockScreen(false); updateUI();
+    Todos.addCup();
+  }
+  function setMinutes(m) {
+    m = Math.min(120, Math.max(1, m)); duration = m * 60; store.set("ct-min", m);
+    reset(); syncPresets();
+  }
+
+  goBtn.onclick = () => running ? pause() : start();
+  $("reset").onclick = reset;
+  $("minus").onclick = () => setMinutes(Math.round(duration / 60) - 1);
+  $("plus").onclick = () => setMinutes(Math.round(duration / 60) + 1);
+  document.querySelectorAll("#presets [data-m]").forEach(b => b.onclick = () => setMinutes(+b.dataset.m));
+  const chimeBtn = $("chime");
+  const syncChime = () => chimeBtn.textContent = `chime: ${chimeOn ? "on" : "off"}`;
+  chimeBtn.onclick = () => { chimeOn = !chimeOn; store.set("ct-chime", chimeOn ? "1" : "0"); syncChime(); if (chimeOn) { ensureAudio(); chime(); } };
+  document.addEventListener("keydown", e => {
+    const tag = e.target.tagName;
+    if (e.code === "Space" && tag !== "BUTTON" && tag !== "INPUT" && tag !== "TEXTAREA") { e.preventDefault(); goBtn.click(); }
+  });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && running) lockScreen(true); });
+
+  // ---- drag to spin ----
+  art.addEventListener("pointerdown", e => { dragging = true; lastX = e.clientX; lastT = performance.now(); art.setPointerCapture(e.pointerId); });
+  art.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const now = performance.now(), dx = e.clientX - lastX, dt = Math.max(1, now - lastT) / 1000;
+    const k = 6 / art.clientWidth; angle -= dx * k; vel = -dx * k / dt; lastX = e.clientX; lastT = now;
+  });
+  const endDrag = () => { dragging = false; };
+  art.addEventListener("pointerup", endDrag); art.addEventListener("pointercancel", endDrag);
+
+  // ---- sizing ----
+  function fit() {
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden;font:100px 'JetBrains Mono',ui-monospace,monospace;white-space:pre";
+    probe.textContent = "M".repeat(20); document.body.appendChild(probe);
+    const cw = probe.getBoundingClientRect().width / 20 / 100; probe.remove();
+    const availW = Math.min(($("stage").clientWidth || window.innerWidth) - 16, 760);
+    const availH = Math.max(220, window.innerHeight - 360);
+    const fs = Math.min(availW / (W * cw), availH / (H * 1.08));
+    art.style.fontSize = fs.toFixed(2) + "px";
+  }
+  window.addEventListener("resize", fit);
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit);
+  fit();
+
+  // ---- loop ----
+  let prev = performance.now(), acc = 0;
+  function loop(now) {
+    const dt = Math.min(0.1, (now - prev) / 1000); prev = now; acc += dt;
+    if (running) {
+      remaining = Math.max(0, (endAt - now) / 1000);
+      if (remaining <= 0) finish();
+      idleMsgTimer += dt;
+      if (idleMsgTimer > 75) { idleMsgTimer = 0; msgIdx++; setStatus(RUN_MSGS[msgIdx % RUN_MSGS.length]); }
+    }
+    if (!dragging) { vel += (0.42 - vel) * Math.min(1, dt * 1.5); angle += vel * dt; }
+    const prog = 1 - remaining / duration;
+    const target = FULL - prog * (FULL - EMPTY);
+    level += (target - level) * Math.min(1, dt * (target > level ? 2.2 : 4));
+    const heat = done ? 0 : 1;
+    stepSteam(steam, dt, heat, now / 1000);
+    if (acc >= 1 / 30) {
+      acc = 0;
+      renderMug(geo, fr, angle, level, now / 1000);
+      drawSteam(steam, fr, now / 1000);
+      art.innerHTML = frameToHTML(fr);
+      timeEl.textContent = fmt(remaining);
+      if (running) document.title = `${fmt(remaining)} · Coffee Timer`;
+    }
+    requestAnimationFrame(loop);
+  }
+  syncPresets(); syncChime(); updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
