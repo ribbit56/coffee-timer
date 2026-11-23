@@ -81,6 +81,11 @@
   .ghost{background:transparent}
   .tiny{font-size:12px;color:var(--cream-dim);opacity:.7;letter-spacing:.04em}
   .tiny button{font-size:12px;padding:5px 11px;color:var(--cream-dim)}
+  /* toggle buttons stack both labels and hide one, so the button is always as wide as its longer label
+     and the centered row doesn't shift when it flips */
+  button.flip{display:inline-grid}
+  button.flip > span{grid-area:1/1}
+  button.flip > span.off{visibility:hidden}
   .tiny a{color:inherit}
 
   /* layout */
@@ -158,8 +163,8 @@
       <button class="ghost" id="reset">Refill</button>
     </div>
     <div class="row tiny">
-      <button id="chime">chime: on</button>
-      <button id="theme">lights: low</button>
+      <button id="chime" class="flip"><span data-v="on">chime: on</span><span data-v="off" class="off">chime: off</span></button>
+      <button id="theme" class="flip"><span data-v="low">lights: low</span><span data-v="up" class="off">lights: up</span></button>
       <span>drag the mug to spin it</span>
       <a href="#list" id="jump">today's list ↓</a>
     </div>
@@ -647,14 +652,17 @@ const Todos = (() => {
   $("plus").onclick = () => setMinutes(Math.round(duration / 60) + 1);
   document.querySelectorAll("#presets [data-m]").forEach(b => b.onclick = () => setMinutes(+b.dataset.m));
   const chimeBtn = $("chime");
-  const syncChime = () => chimeBtn.textContent = `chime: ${chimeOn ? "on" : "off"}`;
+  const showLabel = (btn, v) => btn.querySelectorAll("span[data-v]").forEach(s => {
+    const on = s.dataset.v === v; s.classList.toggle("off", !on); s.setAttribute("aria-hidden", on ? "false" : "true");
+  });
+  const syncChime = () => showLabel(chimeBtn, chimeOn ? "on" : "off");
   chimeBtn.onclick = () => { chimeOn = !chimeOn; store.set("ct-chime", chimeOn ? "1" : "0"); syncChime(); if (chimeOn) { ensureAudio(); chime(); } };
   // ---- theme: "lights: low" (dark) / "lights: up" (light) ----
   let lightOn = document.documentElement.dataset.theme === "light";
   const themeBtn = $("theme");
   const syncTheme = () => {
     document.documentElement.dataset.theme = lightOn ? "light" : "dark";
-    themeBtn.textContent = `lights: ${lightOn ? "up" : "low"}`;
+    showLabel(themeBtn, lightOn ? "up" : "low");
     themeBtn.setAttribute("aria-label", lightOn ? "Switch to dark theme" : "Switch to light theme");
   };
   themeBtn.onclick = () => { lightOn = !lightOn; store.set("ct-theme", lightOn ? "light" : "dark"); syncTheme(); };

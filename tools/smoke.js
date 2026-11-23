@@ -66,9 +66,10 @@ async function main() {
   check($("art").textContent.trim().length > 0, "mug frame rendered into <pre>");
 
   const root = document.documentElement;
-  check(root.dataset.theme === "dark" && $("theme").textContent === "lights: low", "starts in dark theme");
+  const label = btn => btn.querySelector("span:not(.off)").textContent;
+  check(root.dataset.theme === "dark" && label($("theme")) === "lights: low", "starts in dark theme");
   $("theme").click();
-  check(root.dataset.theme === "light" && $("theme").textContent === "lights: up", "toggle switches to light theme");
+  check(root.dataset.theme === "light" && label($("theme")) === "lights: up", "toggle switches to light theme");
   check(window.localStorage.getItem("ct-theme") === "light", "light theme is remembered");
   $("theme").click();
   check(root.dataset.theme === "dark" && window.localStorage.getItem("ct-theme") === "dark", "toggle switches back to dark");
