@@ -65,6 +65,14 @@ async function main() {
   check(/^\d\d:\d\d$/.test($("time").textContent), `timer shows ${$("time").textContent}`);
   check($("art").textContent.trim().length > 0, "mug frame rendered into <pre>");
 
+  const root = document.documentElement;
+  check(root.dataset.theme === "dark" && $("theme").textContent === "lights: low", "starts in dark theme");
+  $("theme").click();
+  check(root.dataset.theme === "light" && $("theme").textContent === "lights: up", "toggle switches to light theme");
+  check(window.localStorage.getItem("ct-theme") === "light", "light theme is remembered");
+  $("theme").click();
+  check(root.dataset.theme === "dark" && window.localStorage.getItem("ct-theme") === "dark", "toggle switches back to dark");
+
   console.log("\npage list:", rows().map(li => li.querySelector(".chk").textContent + " " + rowText(li)).join(" | "));
   await wait(700);
   console.log("db doc:", store.get("data/users/u_test/todos"));

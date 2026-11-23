@@ -32,6 +32,11 @@ The lists in the two places are separate, and nothing copies tasks between them.
 ### Mug
 - You can drag the mug to spin it. It keeps that momentum for a moment, then eases back to the idle spin speed of 0.42 rad/s.
 - It is drawn at 30 fps into a `<pre>` with one colored `<span>` per run of characters that share a color.
+- A steel spoon rests on the saucer directly opposite the handle. Whenever the mug hides one, the other is in view, so you can always tell which way it faces, even once the coffee and its swirl are gone.
+
+### Light mode
+- The "lights: low / lights: up" button switches between the dark espresso theme (default) and a light latte theme. The choice is saved in `ct-theme` and applied by a tiny `<head>` script before first paint, so there is no flash.
+- Both themes use the same warm browns. Light mode swaps the roles (dark ink on a pale page), uses bold glyphs for the art, and draws the spoon in a cool slate so it stands out from the saucer.
 
 ### To-do list ("today's list")
 - Add a task (max 200 chars), check it off with `[ ]`/`[x]`, delete it with ×, and remove finished tasks with "clear done".
@@ -61,11 +66,12 @@ The lists in the two places are separate, and nothing copies tasks between them.
   - `COF`: the coffee surface disc at y = coffee level. `extra` is the radius, plus 10 if that point is foam (the 3-arm latte spiral, `sin(3θ + 9.5r) > 0.45`).
   - `SAU`: the saucer, a shallow dish with a raised edge, radius about 0.92–1.52, plus its outer edge band.
   - `HAN`: the handle, part of a torus (center x = 0.98, major radius 0.46, minor radius 0.125, u from −1.8 to 1.8).
+  - `SPN`: the spoon, a flat oval bowl (slightly dished) plus a handle that widens to a round tip. It lies along a line tangent to the mug at radius 1.23, at angle π (opposite the handle), lifted 0.05 above the saucer surface.
 - **Camera:** spins around Y by the angle `A`, then tilts around X by `TILT = 0.8` so you see into the cup. Perspective uses `ooz = 1/(z + DIST)` with `DIST = 6`. Screen position is `col = COLC + KX·x·ooz` and `row = ROWC − KY·y·ooz`, with `KX = 92` and `KY = 50`; `KX/KY` makes up for characters being taller than they are wide. Surfaces facing away (`nz > 0.04`) are skipped, and the z-buffer handles the rest.
-- **Shading:** Lambert lighting, with the light direction `(-0.62, 0.5, -0.6)` normalized and given in camera space. The brightness is mapped onto the ramp `.,-~:;=!*#$@`. Each kind adds its own ambient light and scaling. The coffee gets a gentle ripple, `0.07·sin(16r − 1.6t)`.
+- **Shading:** Lambert lighting, with the light direction `(-0.62, 0.5, -0.6)` normalized and given in camera space. The brightness is mapped onto the ramp `.,-~:;=!*#$@`. With `renderMug(..., inv = true)` (light mode) the ramp is reversed and squeezed into `;`…`@`, because dense glyphs look dark on a pale page; the spoon is kept at the dense end. Each kind adds its own ambient light and scaling. The coffee gets a gentle ripple, `0.07·sin(16r − 1.6t)`.
 - **Coffee level:** runs from `FULL = 0.72` to `EMPTY = −0.9`. The main loop eases the shown level toward its target, faster when draining than when refilling.
 - **Steam:** particles kept in grid coordinates. They are spawned above the rim (`ROWC − 12`) at a rate set by `heat`, which is 1 unless the timer has finished. Each one sways sideways along a sine wave, and its character (`( ) ~ ' \``) depends on the direction of the sway and its age. Particles are only drawn into empty cells, with 3 fading color classes (`t1/t2/t3`).
-- **Color classes:** `CLS = ["", "m", "md", "c", "f", "s", "t1", "t2", "t3"]`, which is empty, mug, mug dim (inside), coffee, foam, saucer, and steam ×3.
+- **Color classes:** `CLS = ["", "m", "md", "c", "f", "s", "t1", "t2", "t3", "sp"]`, which is empty, mug, mug dim (inside), coffee, foam, saucer, steam ×3, and spoon.
 
 ### Sizing
 `fit()` measures the actual width of a monospace character, then sets the `<pre>`'s font size so the whole grid fits both the stage width and `innerHeight − 360`. It runs on resize and again once the fonts have loaded.
@@ -74,7 +80,7 @@ The lists in the two places are separate, and nothing copies tasks between them.
 - **Mobile:** `.timer-col` is a full screen tall, and the to-do card sits below it.
 - **≥ 940px:** the two columns sit side by side (`.layout` flex row).
 - **Fonts:** Fraunces (serif UI) and JetBrains Mono (the art, checkboxes, cups), both from Google Fonts.
-- **Palette:** CSS variables in `:root`, a warm brown background with cream, coffee, foam, saucer and accent colors.
+- **Palette:** CSS variables in `:root` (dark) and `:root[data-theme="light"]`. Translucent tints use rgb triples, `--ink` and `--acc`, as `rgba(var(--ink), .16)`, so each theme only redefines variables.
 
 ---
 
@@ -85,6 +91,7 @@ The lists in the two places are separate, and nothing copies tasks between them.
 |---|---|
 | `ct-min` | Last chosen duration in minutes |
 | `ct-chime` | `"1"` / `"0"` |
+| `ct-theme` | `"dark"` / `"light"` |
 | `ct-todos-v1` | Local cache or fallback copy of the to-do doc (same shape as below) |
 
 All access is wrapped in try/catch, because storage can be missing or throw in the sandbox.
@@ -130,7 +137,7 @@ There's no test framework, just two small Node scripts in `tools/`:
 ```bash
 npm install            # just jsdom, for the smoke test
 npm run ascii          # prints 3 frames of the mug as plain text (full / half / empty, different angles)
-npm run smoke          # loads index.html in jsdom with a fake window.claude db; adds/focuses/checks tasks; prints the result
+npm run smoke          # loads index.html in jsdom with a fake window.claude db; adds/focuses/checks tasks, toggles the theme; prints the result
 ```
 
 To check things by eye, open `index.html` in a browser. The to-do list will be in local-only mode there, as described above.
