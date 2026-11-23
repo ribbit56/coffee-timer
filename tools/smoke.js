@@ -73,6 +73,22 @@ async function main() {
   $("theme").click();
   check(root.dataset.theme === "dark" && window.localStorage.getItem("ct-theme") === "dark", "toggle switches back to dark");
 
+  // reorder (Alt+arrow runs the same apply-and-save path as a drag drop)
+  addTask("Stretch"); addTask("Water plants");
+  const names = () => rows().map(rowText).join(" / ");
+  check(rows().every(li => li.querySelector(".grip")), "every row has a drag grip");
+  const altKey = (li, key) => li.querySelector(".chk").dispatchEvent(new window.KeyboardEvent("keydown", { key, altKey: true, bubbles: true }));
+  altKey(rows()[0], "ArrowDown");
+  check(names() === "Stretch / Reply to emails / Water plants", "Alt+Down moves a task down");
+  altKey(rows()[2], "ArrowUp");
+  check(names() === "Stretch / Water plants / Reply to emails", "Alt+Up moves a task up");
+  rows()[0].querySelector(".chk").click();   // finish "Stretch": it drops into the done group
+  altKey(rows()[1], "ArrowDown");
+  check(names() === "Water plants / Reply to emails / Stretch", "tasks can't be moved into the done group");
+  await wait(700);
+  const order = JSON.parse(store.get("data/users/u_test/todos")).items.filter(x => !x.done).map(x => x.text).join(" / ");
+  check(order === "Water plants / Reply to emails", "new order is saved");
+
   console.log("\npage list:", rows().map(li => li.querySelector(".chk").textContent + " " + rowText(li)).join(" | "));
   await wait(700);
   console.log("db doc:", store.get("data/users/u_test/todos"));

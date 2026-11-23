@@ -113,6 +113,13 @@
     border-radius:10px;transition:background .2s}
   ul.todos li:last-child{border-bottom:none}
   ul.todos li.focus{background:rgba(var(--acc),.12)}
+  .grip{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:1;color:var(--cream-dim);opacity:.3;
+    cursor:grab;touch-action:none;padding:6px 2px;margin-right:-6px;transition:opacity .2s}
+  ul.todos li:hover .grip{opacity:.75}
+  @media (pointer:coarse){ .grip{opacity:.55;padding:8px 6px;margin-left:-4px} }
+  @media (pointer:fine){ ul.todos li{cursor:grab} }
+  ul.todos li.dragging{position:relative;z-index:2;background:rgba(var(--acc),.2);box-shadow:0 8px 22px var(--shadow);transition:none}
+  ul.todos.sorting, ul.todos.sorting *{cursor:grabbing !important}
   .chk{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:15px;background:none;border:none;padding:4px 2px;color:var(--cream-dim);border-radius:6px}
   li.done .chk{color:var(--accent)}
   .txt{flex:1;min-width:0;font-size:16px;line-height:1.3;cursor:pointer;word-break:break-word}
@@ -438,16 +445,89 @@ const Todos = (() => {
     it.cups += 1; save();
   }
 
+  // ---- drag to reorder ----
+  // Mouse: drag a row from anywhere. Touch: drag by the ≡ grip, so the list still scrolls.
+  // Rows only move within their own group (open / done). Keyboard: Alt+↑/↓ on a row's checkbox.
+  let drag = null, suppressClick = false;
+  function applyOrder(ids) {
+    const byId = new Map(items.map(x => [x.id, x]));
+    const out = ids.map(id => byId.get(id)).filter(Boolean);
+    for (const x of items) if (!ids.includes(x.id)) out.push(x);   // anything that arrived mid-drag
+    const changed = out.length !== items.length || out.some((x, i) => x !== items[i]);
+    items = out;
+    if (changed) save(); else render();
+  }
+  function moveBy(id, d) {
+    const ids = [...$("todos").children].map(li => li.dataset.id);
+    const i = ids.indexOf(id), j = i + d;
+    const it = items.find(x => x.id === id), other = items.find(x => x.id === ids[j]);
+    if (!it || !other || other.done !== it.done) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    applyOrder(ids);
+    const btn = $("todos").querySelector(`li[data-id="${id}"] .chk`); if (btn) btn.focus();
+  }
+  function initDrag() {
+    const ul = $("todos");
+    ul.addEventListener("pointerdown", e => {
+      const li = e.target.closest("li");
+      if (!li || e.button > 0 || e.target.closest(".chk, .del")) return;
+      const onGrip = !!e.target.closest(".grip");
+      if (e.pointerType !== "mouse" && !onGrip) return;
+      if (onGrip) e.preventDefault();
+      drag = { li, pid: e.pointerId, y0: e.clientY, base: e.clientY, on: false };
+    });
+    ul.addEventListener("pointermove", e => {
+      if (!drag || e.pointerId !== drag.pid) return;
+      const li = drag.li;
+      if (!drag.on) {
+        if (Math.abs(e.clientY - drag.y0) < 5) return;
+        drag.on = true; li.classList.add("dragging"); ul.classList.add("sorting");
+        try { li.setPointerCapture(drag.pid); } catch {}
+      }
+      const done = li.classList.contains("done");
+      const same = n => n && n.classList.contains("done") === done;
+      const mid = n => { const r = n.getBoundingClientRect(); return r.top + r.height / 2; };
+      // once the pointer passes a neighbour's middle, swap with it and shift the baseline by its height
+      for (let n = li.previousElementSibling; same(n) && e.clientY < mid(n); n = li.previousElementSibling) {
+        ul.insertBefore(li, n); drag.base -= n.offsetHeight;
+      }
+      for (let n = li.nextElementSibling; same(n) && e.clientY > mid(n); n = li.nextElementSibling) {
+        ul.insertBefore(n, li); drag.base += n.offsetHeight;
+      }
+      li.style.transform = `translateY(${e.clientY - drag.base}px)`;
+    });
+    const end = e => {
+      if (!drag || e.pointerId !== drag.pid) return;
+      const d = drag; drag = null;
+      if (!d.on) return;
+      suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);   // the drop isn't a tap
+      d.li.classList.remove("dragging"); d.li.style.transform = ""; ul.classList.remove("sorting");
+      applyOrder([...ul.children].map(li => li.dataset.id));
+    };
+    ul.addEventListener("pointerup", end);
+    ul.addEventListener("pointercancel", end);
+    ul.addEventListener("click", e => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+  }
+
   function render() {
+    if (drag && drag.on) return;   // a synced update mid-drag is picked up when the drop saves
     const ul = $("todos"); ul.textContent = "";
     const open = items.filter(x => !x.done), done = items.filter(x => x.done);
     for (const it of [...open, ...done]) {
       const li = document.createElement("li");
       li.className = (it.done ? "done " : "") + (it.id === focusId ? "focus" : "");
+      li.dataset.id = it.id;
+      const grip = document.createElement("span");
+      grip.className = "grip"; grip.textContent = "≡"; grip.title = "Drag to reorder";
+      grip.setAttribute("aria-hidden", "true");
+      li.append(grip);
       const chk = document.createElement("button");
       chk.className = "chk"; chk.textContent = it.done ? "[x]" : "[ ]";
-      chk.setAttribute("aria-label", it.done ? "Mark not done" : "Mark done");
+      chk.setAttribute("aria-label", (it.done ? "Mark not done" : "Mark done") + ". Alt plus arrow keys to move");
       chk.onclick = () => toggle(it.id);
+      chk.onkeydown = e => {
+        if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); moveBy(it.id, e.key === "ArrowUp" ? -1 : 1); }
+      };
       const txt = document.createElement("span");
       txt.className = "txt"; txt.textContent = it.text;
       txt.title = it.done ? "" : (it.id === focusId ? "Tap to stop brewing this" : "Tap to brew this with the timer");
@@ -474,6 +554,7 @@ const Todos = (() => {
   document.addEventListener("DOMContentLoaded", () => {
     $("addForm").addEventListener("submit", e => { e.preventDefault(); const inp = $("newTask"); add(inp.value); inp.value = ""; inp.focus(); });
     $("clearDone").onclick = clearDone;
+    initDrag();
     render();
   });
   window.addEventListener("load", connect);

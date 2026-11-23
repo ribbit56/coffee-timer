@@ -40,7 +40,8 @@ The lists in the two places are separate, and nothing copies tasks between them.
 
 ### To-do list ("today's list")
 - Add a task (max 200 chars), check it off with `[ ]`/`[x]`, delete it with ×, and remove finished tasks with "clear done".
-- Open tasks are listed first and finished ones last. Within each group, tasks keep the order they were added.
+- Open tasks are listed first and finished ones last. Within each group, tasks keep the order you arrange them in (new tasks go to the bottom).
+- **Reordering:** drag a task to move it within its group. With a mouse you can grab the row anywhere; on touch screens you drag by the `≡` grip so the list still scrolls. A drop never counts as a tap, so it won't start brewing. From the keyboard, Alt+↑/↓ on a task's checkbox moves it. The new order is saved like any other change.
 - **Brewing:** tapping a task's text makes it the current focus. It is highlighted, gets a "brewing" tag, and shows under the timer as "brewing: …". Only one task brews at a time. Checking that task off un-brews it.
 - **Cups:** each time a timer finishes while a task is brewing, that task gets +1 cup, shown as `c[_]×N`.
 - A "today's list (N) ↓" link under the timer scrolls to the list on mobile.
@@ -137,7 +138,7 @@ There's no test framework, just two small Node scripts in `tools/`:
 ```bash
 npm install            # just jsdom, for the smoke test
 npm run ascii          # prints 3 frames of the mug as plain text (full / half / empty, different angles)
-npm run smoke          # loads index.html in jsdom with a fake window.claude db; adds/focuses/checks tasks, toggles the theme; prints the result
+npm run smoke          # loads index.html in jsdom with a fake window.claude db; adds/focuses/checks/reorders tasks, toggles the theme; prints the result
 ```
 
 To check things by eye, open `index.html` in a browser. The to-do list will be in local-only mode there, as described above.
@@ -161,7 +162,7 @@ Adding a new capability (such as `downloads`) means declaring it **before** publ
 
 ## Ideas (not decided, just possibilities)
 
-- Editing a task's text in place, and drag-to-reorder
+- Editing a task's text in place
 - A break mode (5-minute "refill" breaks, with a pot or teapot shown during breaks)
 - A daily summary: cups finished today, a streak
 - Different drinks or themes (tea with a bag string, iced coffee, matcha)
